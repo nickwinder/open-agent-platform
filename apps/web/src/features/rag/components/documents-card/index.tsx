@@ -86,7 +86,7 @@ export function DocumentsCard({
   const handleFiles = (files: File[] | null) => {
     if (!files?.length) return;
 
-    const allowedTypes = ["application/pdf", "text/plain", "text/html"];
+    const allowedTypes = ["application/pdf", "text/plain", "text/html", "text/markdown"];
     const filteredFiles = files.filter((file) =>
       allowedTypes.includes(file.type),
     );
@@ -118,7 +118,7 @@ export function DocumentsCard({
     setIsDragging(false);
 
     const files = event.dataTransfer.files;
-    const acceptedExtensions = [".pdf", ".txt", ".html"];
+    const acceptedExtensions = [".pdf", ".txt", ".html", ".md"];
     const supportedFiles: File[] = [];
     const unsupportedFiles: File[] = [];
 
@@ -136,7 +136,7 @@ export function DocumentsCard({
     if (unsupportedFiles.length > 0) {
       const unsupportedNames = unsupportedFiles.map((f) => f.name).join(", ");
       toast.error(
-        `Unsupported file types: ${unsupportedNames}. Please use PDF, TXT, or HTML.`,
+        `Unsupported file types: ${unsupportedNames}. Please use PDF, TXT, HTML, or Markdown.`,
         { richColors: true },
       );
     }
@@ -268,7 +268,7 @@ export function DocumentsCard({
                   id="file-upload"
                   multiple
                   onChange={handleFileSelect}
-                  accept=".pdf,.txt,.html"
+                  accept=".pdf,.txt,.html,.md"
                 />
                 <Label htmlFor="file-upload">
                   <Button
