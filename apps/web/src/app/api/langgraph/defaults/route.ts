@@ -28,7 +28,6 @@ function createServerClient(deploymentId: string, accessToken?: string) {
     apiUrl: deployment.deploymentUrl,
     defaultHeaders: {
       Authorization: `Bearer ${accessToken}`,
-      "x-supabase-access-token": accessToken,
     },
   });
   return client;

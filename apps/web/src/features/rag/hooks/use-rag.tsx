@@ -3,7 +3,6 @@ import { Document } from "@langchain/core/documents";
 import { v4 as uuidv4 } from "uuid";
 import { Collection, CollectionCreate } from "@/types/collection";
 import { toast } from "sonner";
-import { useAuthContext } from "@/providers/Auth";
 
 export const DEFAULT_COLLECTION_NAME = "default_collection";
 
@@ -70,7 +69,7 @@ async function uploadDocuments(
       method: "POST",
       body: formData,
       headers: {
-        Authorization: `Bearer ${authorization}`,
+        ...(authorization ? { Authorization: `Bearer ${authorization}` } : {}),
       },
     });
 
@@ -102,7 +101,7 @@ interface UseRagReturn {
   initialSearchExecuted: boolean;
   setInitialSearchExecuted: Dispatch<SetStateAction<boolean>>;
   // Initial load
-  initialFetch: (accessToken: string) => Promise<void>;
+  initialFetch: () => Promise<void>;
 
   // Collection state and operations
   collections: Collection[];
@@ -149,7 +148,6 @@ interface UseRagReturn {
  * Combines the logic of useCollections and useDocuments.
  */
 export function useRag(): UseRagReturn {
-  const { session } = useAuthContext();
 
   // --- State ---
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -162,18 +160,18 @@ export function useRag(): UseRagReturn {
   const [initialSearchExecuted, setInitialSearchExecuted] = useState(false);
 
   // --- Initial Fetch ---
-  const initialFetch = useCallback(async (accessToken: string) => {
+  const initialFetch = useCallback(async () => {
     setCollectionsLoading(true);
     setDocumentsLoading(true);
     let initCollections: Collection[] = [];
 
     try {
-      initCollections = await getCollections(accessToken);
+      initCollections = await getCollections();
     } catch (e: any) {
       if (e.message.includes("Failed to fetch collections")) {
         // Database likely not initialized yet. Let's try this then re-fetch.
-        await initializeDatabase(accessToken);
-        initCollections = await getCollections(accessToken);
+        await initializeDatabase();
+        initCollections = await getCollections();
       }
     }
 
@@ -197,28 +195,19 @@ export function useRag(): UseRagReturn {
       {
         limit: 100,
       },
-      accessToken,
     );
     setDocuments(documents);
     setDocumentsLoading(false);
   }, []);
 
   const initializeDatabase = useCallback(
-    async (accessToken?: string) => {
-      if (!session?.accessToken && !accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to list documents. Please try again.",
-        });
-        return [];
-      }
-
+    async () => {
       const url = getApiUrlOrThrow();
       url.pathname = "/admin/initialize-database";
       const response = await fetch(url.toString(), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken || session?.accessToken}`,
+          ...(process.env.NEXT_PUBLIC_RAG_API_KEY ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_RAG_API_KEY}` } : {}),
         },
       });
       if (!response.ok) {
@@ -229,7 +218,7 @@ export function useRag(): UseRagReturn {
       const data = await response.json();
       return data;
     },
-    [session],
+    [],
   );
 
   // --- Document Operations ---
@@ -240,14 +229,6 @@ export function useRag(): UseRagReturn {
       args?: { limit?: number; offset?: number },
       accessToken?: string,
     ): Promise<Document[]> => {
-      if (!session?.accessToken && !accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to list documents. Please try again.",
-        });
-        return [];
-      }
-
       const url = getApiUrlOrThrow();
       url.pathname = `/collections/${collectionId}/documents`;
       if (args?.limit) {
@@ -259,7 +240,7 @@ export function useRag(): UseRagReturn {
 
       const response = await fetch(url.toString(), {
         headers: {
-          Authorization: `Bearer ${accessToken || session?.accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
       });
       if (!response.ok) {
@@ -268,19 +249,11 @@ export function useRag(): UseRagReturn {
       const data = await response.json();
       return data;
     },
-    [session],
+    [],
   );
 
   const deleteDocument = useCallback(
     async (id: string) => {
-      if (!session?.accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to delete document. Please try again.",
-        });
-        return;
-      }
-
       if (!selectedCollection) {
         throw new Error("No collection selected");
       }
@@ -291,7 +264,7 @@ export function useRag(): UseRagReturn {
       const response = await fetch(url.toString(), {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${session.accessToken}`,
+          ...(process.env.NEXT_PUBLIC_RAG_API_KEY ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_RAG_API_KEY}` } : {}),
         },
       });
       if (!response.ok) {
@@ -302,19 +275,11 @@ export function useRag(): UseRagReturn {
         prevDocs.filter((doc) => doc.metadata.file_id !== id),
       );
     },
-    [selectedCollection, session],
+    [selectedCollection],
   );
 
   const handleFileUpload = useCallback(
     async (files: FileList | null, collectionId: string) => {
-      if (!session?.accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to upload file document(s). Please try again.",
-        });
-        return;
-      }
-
       if (!files || files.length === 0) {
         console.warn("File upload skipped: No files selected.");
         return;
@@ -336,24 +301,16 @@ export function useRag(): UseRagReturn {
       await uploadDocuments(
         collectionId,
         Array.from(files),
-        session.accessToken,
+        process.env.NEXT_PUBLIC_RAG_API_KEY || '',
         newDocs.map((d) => d.metadata),
       );
       setDocuments((prevDocs) => [...prevDocs, ...newDocs]);
     },
-    [session],
+    [],
   );
 
   const handleTextUpload = useCallback(
     async (textInput: string, collectionId: string) => {
-      if (!session?.accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to upload text document. Please try again.",
-        });
-        return;
-      }
-
       if (!textInput.trim()) {
         console.warn("Text upload skipped: Text is empty.");
         return;
@@ -367,7 +324,7 @@ export function useRag(): UseRagReturn {
         size: `${(textInput.length / 1024).toFixed(1)} KB`,
         created_at: new Date().toISOString(),
       };
-      await uploadDocuments(collectionId, [textFile], session.accessToken, [
+      await uploadDocuments(collectionId, [textFile], process.env.NEXT_PUBLIC_RAG_API_KEY || '', [
         metadata,
       ]);
       setDocuments((prevDocs) => [
@@ -379,27 +336,19 @@ export function useRag(): UseRagReturn {
         }),
       ]);
     },
-    [session],
+    [],
   );
 
   // --- Collection Operations ---
 
   const getCollections = useCallback(
     async (accessToken?: string): Promise<Collection[]> => {
-      if (!session?.accessToken && !accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to fetch collections. Please try again.",
-        });
-        return [];
-      }
-
       const url = getApiUrlOrThrow();
       url.pathname = "/collections";
 
       const response = await fetch(url.toString(), {
         headers: {
-          Authorization: `Bearer ${accessToken || session?.accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
       });
       if (!response.ok) {
@@ -408,7 +357,7 @@ export function useRag(): UseRagReturn {
       const data = await response.json();
       return data;
     },
-    [session],
+    [],
   );
 
   const createCollection = useCallback(
@@ -417,14 +366,6 @@ export function useRag(): UseRagReturn {
       metadata: Record<string, any> = {},
       accessToken?: string,
     ): Promise<Collection | undefined> => {
-      if (!session?.accessToken && !accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to create collection. Please try again.",
-        });
-        return;
-      }
-
       const url = getApiUrlOrThrow();
       url.pathname = "/collections";
 
@@ -449,7 +390,7 @@ export function useRag(): UseRagReturn {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken || session?.accessToken}`,
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify(newCollection),
       });
@@ -461,7 +402,7 @@ export function useRag(): UseRagReturn {
       setCollections((prevCollections) => [...prevCollections, data]);
       return data;
     },
-    [collections, session],
+    [collections],
   );
 
   const updateCollection = useCallback(
@@ -470,14 +411,6 @@ export function useRag(): UseRagReturn {
       newName: string,
       metadata: Record<string, any>,
     ): Promise<Collection | undefined> => {
-      if (!session?.accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to update collection. Please try again.",
-        });
-        return;
-      }
-
       // Find the collection to update
       const collectionToUpdate = collections.find(
         (c) => c.uuid === collectionId,
@@ -522,7 +455,7 @@ export function useRag(): UseRagReturn {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.accessToken}`,
+          ...(process.env.NEXT_PUBLIC_RAG_API_KEY ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_RAG_API_KEY}` } : {}),
         },
         body: JSON.stringify(updateData),
       });
@@ -550,19 +483,11 @@ export function useRag(): UseRagReturn {
 
       return updatedCollection;
     },
-    [collections, selectedCollection, session],
+    [collections, selectedCollection],
   );
 
   const deleteCollection = useCallback(
     async (collectionId: string): Promise<string | undefined> => {
-      if (!session?.accessToken) {
-        toast.error("No session found", {
-          richColors: true,
-          description: "Failed to delete collection. Please try again.",
-        });
-        return;
-      }
-
       const collectionToDelete = collections.find(
         (c) => c.uuid === collectionId,
       );
@@ -577,7 +502,7 @@ export function useRag(): UseRagReturn {
       const response = await fetch(url.toString(), {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${session.accessToken}`,
+          ...(process.env.NEXT_PUBLIC_RAG_API_KEY ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_RAG_API_KEY}` } : {}),
         },
       });
 
@@ -593,7 +518,7 @@ export function useRag(): UseRagReturn {
         ),
       );
     },
-    [collections, session],
+    [collections],
   );
 
   // --- Return combined state and functions ---

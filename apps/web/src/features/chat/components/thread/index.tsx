@@ -34,7 +34,6 @@ import { Switch } from "@/components/ui/switch";
 import { ensureToolCallsHaveResponses } from "@/features/chat/utils/tool-responses";
 import { DO_NOT_RENDER_ID_PREFIX } from "@/constants";
 import { useConfigStore } from "../../hooks/use-config-store";
-import { useAuthContext } from "@/providers/Auth";
 import { AgentsCombobox } from "@/components/ui/agents-combobox";
 import { useAgentsContext } from "@/providers/Agents";
 import { isUserSpecifiedDefaultAgent } from "@/lib/agent-utils";
@@ -224,7 +223,6 @@ export function Thread() {
 
   const { apiKeys } = useApiKeys();
 
-  const { session } = useAuthContext();
 
   const stream = useStreamContext();
   const messages = stream.messages;
@@ -324,7 +322,6 @@ export function Thread() {
           },
         },
         metadata: {
-          supabaseAccessToken: session?.accessToken,
         },
         streamSubgraphs: true,
         streamResumable: true,
@@ -358,7 +355,6 @@ export function Thread() {
       },
       optimisticValues,
       metadata: {
-        supabaseAccessToken: session?.accessToken,
       },
       streamSubgraphs: true,
       streamResumable: true,

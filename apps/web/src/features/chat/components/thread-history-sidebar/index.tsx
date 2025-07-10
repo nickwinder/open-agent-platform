@@ -8,7 +8,6 @@ import { createClient } from "@/lib/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
-import { useAuthContext } from "@/providers/Auth";
 import { MessageContent } from "@langchain/core/messages";
 import { FileClock } from "lucide-react";
 
@@ -70,7 +69,6 @@ export const ThreadHistorySidebar = forwardRef<
   HTMLDivElement,
   ThreadHistorySidebarProps
 >(({ className, open, setOpen }, ref: ForwardedRef<HTMLDivElement>) => {
-  const { session } = useAuthContext();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [threadId, setThreadId] = useQueryState("threadId");
   const [agentId] = useQueryState("agentId");
@@ -78,12 +76,12 @@ export const ThreadHistorySidebar = forwardRef<
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!agentId || !deploymentId || !session?.accessToken) return;
+    if (!agentId || !deploymentId) return;
 
     const getAgentThreads = async (
       _agentId: string,
       _deploymentId: string,
-      accessToken: string,
+      accessToken?: string,
     ) => {
       setLoading(true);
 
@@ -105,8 +103,8 @@ export const ThreadHistorySidebar = forwardRef<
       }
     };
 
-    getAgentThreads(agentId, deploymentId, session.accessToken);
-  }, [agentId, deploymentId, session?.accessToken]);
+    getAgentThreads(agentId, deploymentId, undefined);
+  }, [agentId, deploymentId]);
 
   const handleChangeThread = (id: string) => {
     if (threadId === id) return;

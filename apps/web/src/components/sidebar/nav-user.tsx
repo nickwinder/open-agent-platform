@@ -1,12 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import {
   ChevronsUpDown,
-  LogOut,
-  User,
-  Loader2,
-  TriangleAlert,
   Settings,
 } from "lucide-react";
 
@@ -25,59 +20,24 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useAuthContext } from "@/providers/Auth";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useConfigStore } from "@/features/chat/hooks/use-config-store";
+import { TriangleAlert } from "lucide-react";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { user: authUser, signOut, isAuthenticated } = useAuthContext();
   const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
   const { resetStore } = useConfigStore();
 
-  // Use auth user if available, otherwise use default user
-  const displayUser = authUser
-    ? {
-        name: authUser.displayName || authUser.email?.split("@")[0] || "User",
-        email: authUser.email || "",
-        avatar: authUser.avatarUrl || "",
-        company: authUser.companyName || "",
-        firstName: authUser.firstName || "",
-        lastName: authUser.lastName || "",
-      }
-    : {
-        name: "Guest",
-        email: "Not signed in",
-        avatar: "",
-        company: "",
-        firstName: "",
-        lastName: "",
-      };
-
-  const handleSignOut = async () => {
-    try {
-      setIsSigningOut(true);
-      const { error } = await signOut();
-
-      if (error) {
-        console.error("Error signing out:", error);
-        toast.error("Error signing out", { richColors: true });
-        return;
-      }
-
-      router.push("/signin");
-    } catch (err) {
-      console.error("Error during sign out:", err);
-      toast.error("Error signing out", { richColors: true });
-    } finally {
-      setIsSigningOut(false);
-    }
-  };
-
-  const handleSignIn = () => {
-    router.push("/signin");
+  // Default guest user
+  const displayUser = {
+    name: "Guest User",
+    email: "guest@example.com",
+    avatar: "",
+    company: "",
+    firstName: "Guest",
+    lastName: "User",
   };
 
   const handleClearLocalData = () => {
@@ -109,7 +69,7 @@ export function NavUser() {
                   {displayUser.name}
                 </span>
                 <span className="truncate text-xs">{displayUser.email}</span>
-                {"company" in displayUser && (
+                {displayUser.company && (
                   <span className="text-muted-foreground truncate text-xs">
                     {displayUser.company}
                   </span>
@@ -140,7 +100,7 @@ export function NavUser() {
                     {displayUser.name}
                   </span>
                   <span className="truncate text-xs">{displayUser.email}</span>
-                  {"company" in displayUser && (
+                  {displayUser.company && (
                     <span className="text-muted-foreground truncate text-xs">
                       {displayUser.company}
                     </span>
@@ -155,29 +115,6 @@ export function NavUser() {
               Settings
             </DropdownMenuItem>
 
-            {isAuthenticated ? (
-              <DropdownMenuItem
-                onClick={handleSignOut}
-                disabled={isSigningOut}
-              >
-                {isSigningOut ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing out...
-                  </>
-                ) : (
-                  <>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Sign out
-                  </>
-                )}
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={handleSignIn}>
-                <User className="mr-2 h-4 w-4" />
-                Sign in
-              </DropdownMenuItem>
-            )}
             {!isProdEnv && (
               <DropdownMenuItem onClick={handleClearLocalData}>
                 <TriangleAlert className="mr-2 h-4 w-4 text-red-500" />

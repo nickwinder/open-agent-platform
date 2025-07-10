@@ -21,7 +21,6 @@ import { useAgentsContext } from "@/providers/Agents";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { isUserSpecifiedDefaultAgent } from "@/lib/agent-utils";
-import { useAuthContext } from "@/providers/Auth";
 import { getDeployments } from "@/lib/environment/deployments";
 
 export type StateType = { messages: Message[]; ui?: UIMessage[] };
@@ -54,7 +53,8 @@ const StreamSession = ({
   useProxyRoute?: boolean;
 }) => {
   if (!useProxyRoute && !accessToken) {
-    toast.error("Access token must be provided if not using proxy route");
+    console.warn("No access token provided for non-proxy route");
+    // Continue without access token - the server will handle auth appropriately
   }
 
   const deployment = getDeployments().find((d) => d.id === deploymentId);
@@ -91,7 +91,6 @@ const StreamSession = ({
       ...(!useProxyRoute
         ? {
             Authorization: `Bearer ${accessToken}`,
-            "x-supabase-access-token": accessToken,
           }
         : {
             "x-auth-scheme": "langsmith",
@@ -114,7 +113,6 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
   const [deploymentId, setDeploymentId] = useQueryState("deploymentId");
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
-  const { session } = useAuthContext();
 
   useEffect(() => {
     if (value || !agents.length) {
@@ -179,18 +177,12 @@ export const StreamProvider: React.FC<{ children: ReactNode }> = ({
     );
   }
 
-  const useProxyRoute = process.env.NEXT_PUBLIC_USE_LANGSMITH_AUTH === "true";
-  if (!useProxyRoute && !session?.accessToken) {
-    toast.error("Access token must be provided if not using proxy route");
-    return null;
-  }
-
   return (
     <StreamSession
       agentId={agentId}
       deploymentId={deploymentId}
-      accessToken={session?.accessToken ?? undefined}
-      useProxyRoute={useProxyRoute}
+      accessToken={undefined}
+      useProxyRoute={false}
     >
       {children}
     </StreamSession>

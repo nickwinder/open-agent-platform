@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { BranchSwitcher, CommandBar } from "./shared";
 import { useQueryState } from "nuqs";
 import { useConfigStore } from "@/features/chat/hooks/use-config-store";
-import { useAuthContext } from "@/providers/Auth";
 import { MultimodalPreview } from "./MultimodalPreview";
 import { isBase64ContentBlock } from "@/lib/multimodal-utils";
 
@@ -44,7 +43,6 @@ export function HumanMessage({
   message: Message;
   isLoading: boolean;
 }) {
-  const { session } = useAuthContext();
   const [agentId] = useQueryState("agentId");
 
   const thread = useStreamContext();
@@ -80,9 +78,7 @@ export function HumanMessage({
         config: {
           configurable: getAgentConfig(agentId),
         },
-        metadata: {
-          supabaseAccessToken: session?.accessToken,
-        },
+        metadata: {},
         streamSubgraphs: true,
         streamResumable: true,
       },

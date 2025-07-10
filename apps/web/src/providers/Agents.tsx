@@ -19,8 +19,6 @@ import {
 import { useAgents } from "@/hooks/use-agents";
 import { extractConfigurationsFromAgent } from "@/lib/ui-config";
 import { createClient } from "@/lib/client";
-import { useAuthContext } from "./Auth";
-import { toast } from "sonner";
 import { Assistant } from "@langchain/langgraph-sdk";
 
 async function getOrCreateDefaultAssistants(
@@ -66,7 +64,7 @@ async function getOrCreateDefaultAssistants(
 
 async function getAgents(
   deployments: Deployment[],
-  accessToken: string,
+  accessToken: string | undefined,
   getAgentConfigSchema: (
     agentId: string,
     deploymentId: string,
@@ -170,7 +168,6 @@ const AgentsContext = createContext<AgentsContextType | undefined>(undefined);
 export const AgentsProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const { session } = useAuthContext();
   const agentsState = useAgents();
   const deployments = getDeployments();
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -179,14 +176,13 @@ export const AgentsProvider: React.FC<{ children: ReactNode }> = ({
   const [refreshAgentsLoading, setRefreshAgentsLoading] = useState(false);
 
   useEffect(() => {
-    if (agents.length > 0 || firstRequestMade.current || !session?.accessToken)
-      return;
+    if (agents.length > 0 || firstRequestMade.current) return;
 
     firstRequestMade.current = true;
     setLoading(true);
     getAgents(
       deployments,
-      session.accessToken,
+      undefined, // No access token needed
       agentsState.getAgentConfigSchema,
     )
       // Never expose the system created default assistants to the user
@@ -194,20 +190,14 @@ export const AgentsProvider: React.FC<{ children: ReactNode }> = ({
         setAgents(a.filter((a) => !isSystemCreatedDefaultAssistant(a))),
       )
       .finally(() => setLoading(false));
-  }, [session?.accessToken]);
+  }, []);
 
   async function refreshAgents() {
-    if (!session?.accessToken) {
-      toast.error("No access token found", {
-        richColors: true,
-      });
-      return;
-    }
     try {
       setRefreshAgentsLoading(true);
       const newAgents = await getAgents(
         deployments,
-        session.accessToken,
+        undefined, // No access token needed
         agentsState.getAgentConfigSchema,
       );
       setAgents(newAgents.filter((a) => !isSystemCreatedDefaultAssistant(a)));
